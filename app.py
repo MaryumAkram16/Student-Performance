@@ -122,6 +122,24 @@ div[data-baseweb="slider"] > div > div {
     font-weight: 500;
 }
 
+/* Reset button */
+div[data-testid="stButton"] button {
+    background: var(--neutral-800);
+    color: var(--text);
+    border: 1px solid var(--divider);
+    font-size: 0.78rem;
+    padding: 2px 10px;
+    min-height: 0;
+}
+div[data-testid="stButton"] button:hover {
+    border-color: var(--accent);
+    color: var(--accent-300);
+}
+div[data-testid="column"]:has(div[data-testid="stButton"]) {
+    display: flex;
+    align-items: center;
+}
+
 footer, #MainMenu {visibility: hidden;}
 </style>
 """)
@@ -131,7 +149,17 @@ footer, #MainMenu {visibility: hidden;}
 def load_model():
     return joblib.load("performance_index_rf_model.pkl")
 
-model = load_model()
+try:
+    model = load_model()
+except FileNotFoundError:
+    st.error(
+        "⚠️ Model file not found. Make sure `performance_index_rf_model.pkl` "
+        "is in the same folder as `app.py` and has been committed to the repo."
+    )
+    st.stop()
+except Exception as e:
+    st.error(f"⚠️ Couldn't load the model — it may be corrupted or built with an incompatible library version.\n\n`{e}`")
+    st.stop()
 
 # ── Header ───────────────────────────────────────────────────
 st.html("""
@@ -141,6 +169,15 @@ st.html("""
 </div>
 """)
 
+@st.cache_data
+def load_training_data():
+    return pd.read_csv("Student_Performance.csv")
+
+try:
+    training_df = load_training_data()
+except FileNotFoundError:
+    training_df = None
+
 st.write("")
 
 # ── Hero placeholder (appears first visually; filled in after inputs are read) ──
@@ -149,13 +186,34 @@ hero_slot = st.container(border=True, key="hero")
 st.write("")
 
 # ── Inputs ───────────────────────────────────────────────────
+DEFAULTS = {
+    "hours_studied": 5,
+    "previous_scores": 70,
+    "sample_papers": 3,
+    "sleep_hours": 7,
+    "extracurricular": "Yes",
+}
+
+def reset_to_defaults():
+    for key, val in DEFAULTS.items():
+        st.session_state[key] = val
+
 with st.container(border=True, key="inputs"):
-    st.markdown('<div class="section-label">Your Inputs</div>', unsafe_allow_html=True)
-    hours_studied = st.slider("Hours Studied", 0, 10, 5)
-    previous_scores = st.slider("Previous Scores", 0, 100, 70)
-    sample_papers = st.slider("Sample Papers Practiced", 0, 10, 3)
-    sleep_hours = st.slider("Sleep Hours", 0, 12, 7)
-    extracurricular = st.radio("Extracurricular Activities", ["Yes", "No"], horizontal=True)
+    label_col, btn_col = st.columns([3, 1])
+    with label_col:
+        st.markdown('<div class="section-label">Your Inputs</div>', unsafe_allow_html=True)
+    with btn_col:
+        st.button("Reset", on_click=reset_to_defaults, use_container_width=True)
+
+    hours_studied = st.slider("Hours Studied", 0, 10, DEFAULTS["hours_studied"], key="hours_studied")
+    previous_scores = st.slider("Previous Scores", 0, 100, DEFAULTS["previous_scores"], key="previous_scores")
+    sample_papers = st.slider("Sample Papers Practiced", 0, 10, DEFAULTS["sample_papers"], key="sample_papers")
+    sleep_hours = st.slider("Sleep Hours", 0, 12, DEFAULTS["sleep_hours"], key="sleep_hours")
+    extracurricular = st.radio(
+        "Extracurricular Activities", ["Yes", "No"],
+        index=["Yes", "No"].index(DEFAULTS["extracurricular"]),
+        horizontal=True, key="extracurricular"
+    )
 
 extracurricular_val = 1 if extracurricular == "Yes" else 0
 
@@ -252,6 +310,64 @@ with st.expander("How much does each feature matter?"):
         </div>
         """
     st.html(rows)
+
+st.write("")
+
+# ── Model performance metrics (Suggestion 3) ─────────────────────
+with st.expander("Model performance metrics"):
+    if training_df is not None:
+        try:
+            from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+            eval_features = pd.DataFrame({
+                "Hours Studied": training_df["Hours Studied"],
+                "Previous Scores": training_df["Previous Scores"],
+                "Sleep Hours": training_df["Sleep Hours"],
+                "Sample Question Papers Practiced": training_df["Sample Question Papers Practiced"],
+                "Extracurricular Activities_Yes": (training_df["Extracurricular Activities"] == "Yes").astype(int)
+            })
+            y_true = training_df["Performance Index"]
+            y_pred = model.predict(eval_features)
+            mae = mean_absolute_error(y_true, y_pred)
+            rmse = mean_squared_error(y_true, y_pred) ** 0.5
+
+            m1, m2, m3 = st.columns(3)
+            m1.metric("R²", "0.986")
+            m2.metric("MAE", f"{mae:.2f}")
+            m3.metric("RMSE", f"{rmse:.2f}")
+            st.caption(
+                "MAE and RMSE are computed live against the full training set above — "
+                "on average, predictions are off by about "
+                f"{mae:.1f} points on the 0–100 index."
+            )
+        except KeyError as e:
+            st.warning(f"Couldn't compute MAE/RMSE — expected column {e} not found in Student_Performance.csv.")
+    else:
+        st.info(
+            "R² is 0.986 (reported at training time). MAE and RMSE need "
+            "`Student_Performance.csv` in the app folder to compute live — it wasn't found."
+        )
+
+# ── Training data distribution (Suggestion 2) ─────────────────────
+with st.expander("Training data distribution"):
+    if training_df is not None:
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots(figsize=(6, 3))
+        fig.patch.set_alpha(0)
+        ax.set_facecolor("none")
+        ax.hist(training_df["Performance Index"], bins=20, color="#9184D9", edgecolor="#161826")
+        ax.set_xlabel("Performance Index", color="#9397AB")
+        ax.set_ylabel("Count", color="#9397AB")
+        ax.tick_params(colors="#9397AB")
+        for spine in ax.spines.values():
+            spine.set_color("#292B31")
+        st.pyplot(fig, use_container_width=True)
+    else:
+        st.info(
+            "This needs `Student_Performance.csv` in the app folder to plot — it wasn't found. "
+            "Add it to the repo alongside `app.py` to enable this chart."
+        )
 
 st.write("")
 st.markdown(
