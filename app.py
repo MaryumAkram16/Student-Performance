@@ -1,3 +1,4 @@
+import math
 import streamlit as st
 import joblib
 import numpy as np
@@ -10,22 +11,26 @@ st.set_page_config(
     layout="centered"
 )
 
-# ── Theme tokens + CSS ──────────────────────────────────────────
+# ── Theme tokens + CSS (Nocturne dark palette) ──────────────────
 st.html("""
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-    --ink: #1B1F2B;
-    --muted: #6B7280;
-    --primary: #1E2A47;
-    --accent: #C98A1C;
-    --good: #1E8E63;
-    --warn: #C98A1C;
-    --bad: #C0392B;
-    --border: #E5E7EF;
-    --surface: #FFFFFF;
-    --bg: #F6F7FB;
+    --bg: #161826;
+    --surface: #232532;
+    --text: #E9E9ED;
+    --muted: #9397AB;
+    --divider: rgba(233,233,237,0.16);
+    --accent: #9184D9;
+    --accent-300: #D2CEFD;
+    --accent-600: #796CBF;
+    --accent-800: #423A6A;
+    --accent-100: #F5F4FF;
+    --accent2-800: #423E5D;
+    --neutral-500: #9397AB;
+    --neutral-800: #3F424D;
+    --neutral-100: #F3F5FE;
 }
 
 .stApp {
@@ -34,149 +39,92 @@ st.html("""
 
 html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
-    color: var(--ink);
+    color: var(--text);
 }
 
 /* Header */
-.app-header {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 2px;
-}
-.app-header .icon-badge {
-    width: 48px;
-    height: 48px;
-    border-radius: 10px;
-    background: var(--primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    flex-shrink: 0;
-}
 .app-header h1 {
-    font-family: 'Fraunces', serif;
-    font-weight: 700;
-    font-size: 2rem;
-    color: var(--primary);
-    margin: 0;
-    line-height: 1.1;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 1.6rem;
+    color: var(--text);
+    margin: 0 0 4px 0;
+    letter-spacing: -0.01em;
 }
 .app-subcaption {
     color: var(--muted);
-    font-size: 0.9rem;
-    margin: 6px 0 0 62px;
+    font-size: 0.85rem;
+    margin: 0;
 }
 
-/* Section labels */
+/* Section kicker labels */
 .section-label {
-    font-family: 'Inter', sans-serif;
+    font-size: 0.7rem;
     font-weight: 600;
-    font-size: 0.78rem;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--muted);
-    margin-bottom: 10px;
+    margin-bottom: 14px;
 }
 
-/* Card containers (targets Streamlit's bordered container) */
+/* Card containers via Streamlit's key-scoped wrapper */
 div[data-testid="stVerticalBlockBorderWrapper"] {
     background: var(--surface);
-    border: 1px solid var(--border);
+    border: 1px solid var(--divider);
     border-radius: 14px;
-    box-shadow: 0 1px 3px rgba(20, 24, 40, 0.04);
+}
+.st-key-hero div[data-testid="stVerticalBlockBorderWrapper"] {
+    background:
+        radial-gradient(120% 100% at 15% 0%, #2B2741 0%, #1C1E2E 45%, #161826 78%),
+        linear-gradient(160deg, #262A60 0%, transparent 55%);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.45);
 }
 
 /* Sliders */
 [data-testid="stSlider"] label p {
     font-weight: 500;
-    color: var(--ink);
-    font-size: 0.92rem;
+    color: var(--text);
+    font-size: 0.9rem;
 }
 div[data-baseweb="slider"] div[role="slider"] {
-    background-color: var(--primary) !important;
-    border-color: var(--primary) !important;
+    background-color: var(--accent) !important;
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px var(--bg) !important;
 }
 div[data-baseweb="slider"] > div > div {
-    background: var(--primary) !important;
+    background: var(--accent) !important;
 }
 
-/* Radio */
+/* Segmented radio (Yes/No) */
 [data-testid="stRadio"] label p {
     font-weight: 500;
-    font-size: 0.92rem;
-}
-
-/* Result number */
-.score-row {
-    display: flex;
-    align-items: baseline;
-    gap: 18px;
-    margin: 4px 0 2px 0;
-}
-.score-number {
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 700;
-    font-size: 3.2rem;
-    line-height: 1;
-}
-.grade-badge {
-    font-family: 'Fraunces', serif;
-    font-weight: 700;
-    font-size: 1.4rem;
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    flex-shrink: 0;
-}
-.score-caption {
-    color: var(--muted);
-    font-size: 0.85rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-/* Progress bar recolor */
-[data-testid="stProgress"] div[role="progressbar"] > div {
-    background-color: var(--band-color, var(--primary)) !important;
-}
-
-/* Status message pill */
-.status-pill {
-    display: inline-block;
-    padding: 8px 16px;
-    border-radius: 999px;
-    font-weight: 500;
     font-size: 0.9rem;
-    margin-top: 10px;
+}
+[data-testid="stRadio"] > div {
+    gap: 0 !important;
 }
 
-/* Feature importance bars */
-.feat-row {
-    margin-bottom: 12px;
-}
+/* Feature bars */
+.feat-row { margin-bottom: 12px; }
 .feat-name {
-    font-size: 0.88rem;
-    font-weight: 500;
-    color: var(--ink);
-    margin-bottom: 4px;
+    font-size: 0.8rem;
+    color: var(--text);
+    width: 170px;
+    display: inline-block;
 }
 [data-testid="stExpander"] {
-    border: 1px solid var(--border);
+    border: 1px solid var(--divider);
     border-radius: 12px;
     background: var(--surface);
+}
+[data-testid="stExpander"] summary p {
+    font-size: 0.85rem;
+    font-weight: 500;
 }
 
 footer, #MainMenu {visibility: hidden;}
 </style>
 """)
-
 
 # ── Load the trained model (cached so it only loads once) ──────
 @st.cache_resource
@@ -188,29 +136,23 @@ model = load_model()
 # ── Header ───────────────────────────────────────────────────
 st.html("""
 <div class="app-header">
-    <div class="icon-badge">🎯</div>
-    <h1>Performance Index Predictor</h1>
+    <h1>🎯 Performance Index Predictor</h1>
+    <p class="app-subcaption">Random Forest model trained on Student_Performance.csv &nbsp;·&nbsp; R² 0.986</p>
 </div>
-<div class="app-subcaption">Random Forest model trained on Student_Performance.csv &nbsp;·&nbsp; R² 0.986</div>
 """)
 
 st.write("")
 
-# ── Inputs ───────────────────────────────────────────────────
-with st.container(border=True):
+# ── Inputs (collected first so the hero dial can use live values) ──
+with st.container(border=True, key="inputs"):
     st.markdown('<div class="section-label">Your Inputs</div>', unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    with col1:
-        hours_studied = st.slider("Hours Studied", 0, 10, 5)
-        previous_scores = st.slider("Previous Scores", 0, 100, 70)
-        sleep_hours = st.slider("Sleep Hours", 0, 12, 7)
-    with col2:
-        sample_papers = st.slider("Sample Question Papers Practiced", 0, 10, 3)
-        extracurricular = st.radio("Extracurricular Activities", ["Yes", "No"], horizontal=True)
+    hours_studied = st.slider("Hours Studied", 0, 10, 5)
+    previous_scores = st.slider("Previous Scores", 0, 100, 70)
+    sample_papers = st.slider("Sample Papers Practiced", 0, 10, 3)
+    sleep_hours = st.slider("Sleep Hours", 0, 12, 7)
+    extracurricular = st.radio("Extracurricular Activities", ["Yes", "No"], horizontal=True)
 
 extracurricular_val = 1 if extracurricular == "Yes" else 0
-
-st.write("")
 
 # ── Predict ──────────────────────────────────────────────────
 features = pd.DataFrame([{
@@ -223,59 +165,53 @@ features = pd.DataFrame([{
 prediction = model.predict(features)[0]
 clamped = float(np.clip(prediction, 0, 100))
 
-
-def grade_letter(score):
-    if score >= 90:
-        return "A+"
-    elif score >= 80:
-        return "A"
-    elif score >= 70:
-        return "B"
-    elif score >= 55:
-        return "C"
-    elif score >= 40:
-        return "D"
-    else:
-        return "F"
-
-
 if clamped >= 70:
-    band_color = "#1E8E63"
-    status_bg = "#E9F6EF"
+    band_color = "#9184D9"
+    tag_bg, tag_text = "#423A6A", "#F5F4FF"
     status_text = "Strong predicted performance."
 elif clamped >= 40:
-    band_color = "#C98A1C"
-    status_bg = "#FBF1DE"
+    band_color = "#796CBF"
+    tag_bg, tag_text = "#423E5D", "#F5F4FF"
     status_text = "On track — moderate predicted performance."
 else:
-    band_color = "#C0392B"
-    status_bg = "#FBE9E7"
+    band_color = "#9397AB"
+    tag_bg, tag_text = "#3F424D", "#F3F5FE"
     status_text = "Predicted performance is low — may need support."
 
-# ── Result display ───────────────────────────────────────────
-with st.container(border=True):
-    st.markdown('<div class="section-label">Predicted Performance Index</div>', unsafe_allow_html=True)
-    st.html(f"""
-    <div class="score-row">
-        <div class="grade-badge" style="background:{band_color};">{grade_letter(clamped)}</div>
-        <div>
-            <div class="score-number" style="color:{band_color};">{clamped:.1f}</div>
-            <div class="score-caption">out of 100</div>
+radius = 94
+circumference = 2 * math.pi * radius
+dash = (clamped / 100) * circumference
+dasharray = f"{dash:.1f} {circumference:.1f}"
+
+# ── Hero dial (rendered above inputs in the page, values already computed) ──
+hero_html = f"""
+<div style="text-align:center; padding:8px 0 4px 0;">
+    <div class="section-label" style="text-align:left;">Predicted Performance Index</div>
+    <div style="position:relative; width:220px; height:220px; margin:6px auto 0;">
+        <svg width="220" height="220" viewBox="0 0 220 220" style="transform:rotate(-90deg);">
+            <circle cx="110" cy="110" r="{radius}" fill="none" stroke="#292B31" stroke-width="16"></circle>
+            <circle cx="110" cy="110" r="{radius}" fill="none" stroke="{band_color}"
+                    stroke-width="16" stroke-linecap="round"
+                    stroke-dasharray="{dasharray}"></circle>
+        </svg>
+        <div style="position:absolute; inset:0; display:flex; flex-direction:column;
+                    align-items:center; justify-content:center;">
+            <div style="font-size:52px; font-weight:600; color:{band_color}; line-height:1;">{clamped:.1f}</div>
+            <div style="font-size:11px; letter-spacing:0.06em; text-transform:uppercase;
+                        color:#9397AB; margin-top:6px;">out of 100</div>
         </div>
     </div>
-    """)
+    <span style="display:inline-block; margin-top:14px; padding:6px 14px; border-radius:999px;
+                 font-size:12.5px; background:{tag_bg}; color:{tag_text};">{status_text}</span>
+</div>
+"""
 
-    st.html(f'<style>:root {{ --band-color: {band_color}; }}</style>')
-    st.progress(min(clamped / 100, 1.0))
-
-    st.markdown(
-        f'<div class="status-pill" style="background:{status_bg}; color:{band_color};">{status_text}</div>',
-        unsafe_allow_html=True
-    )
+with st.container(border=True, key="hero"):
+    st.html(hero_html)
 
 st.write("")
 
-# ── Feature importance (optional extra insight) ────────────────
+# ── Feature importance ──────────────────────────────────────────
 with st.expander("How much does each feature matter?"):
     importances = model.feature_importances_
     feature_names = [
@@ -285,9 +221,23 @@ with st.expander("How much does each feature matter?"):
         "Sample Papers Practiced",
         "Extracurricular Activities"
     ]
+    rows = ""
     for name, imp in sorted(zip(feature_names, importances), key=lambda x: -x[1]):
-        st.markdown(f'<div class="feat-name">{name}</div>', unsafe_allow_html=True)
-        st.progress(float(imp))
+        pct = imp * 100
+        rows += f"""
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
+            <div class="feat-name">{name}</div>
+            <div style="flex:1; height:6px; border-radius:999px; background:#292B31; overflow:hidden;">
+                <div style="height:100%; border-radius:999px; background:#9184D9; width:{pct:.0f}%;"></div>
+            </div>
+            <div style="font-size:11.5px; color:#75798C; width:34px; text-align:right;">{pct:.0f}%</div>
+        </div>
+        """
+    st.html(rows)
 
 st.write("")
-st.caption("Model: RandomForestRegressor (scikit-learn) · Runs live on this server, not hardcoded.")
+st.markdown(
+    '<p style="font-size:12px; color:#75798C;">Model: RandomForestRegressor (scikit-learn) '
+    '· Runs live on this server, not hardcoded.</p>',
+    unsafe_allow_html=True
+)
