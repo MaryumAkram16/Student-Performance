@@ -1,6 +1,5 @@
 import math
 import streamlit as st
-import streamlit.components.v1 as components
 import joblib
 import numpy as np
 import pandas as pd
@@ -226,7 +225,7 @@ hero_html = f"""
 """
 
 with hero_slot:
-    components.html(hero_html, height=340, scrolling=False)
+    st.iframe(hero_html, height=340, scrolling=False)
 
 st.write("")
 
