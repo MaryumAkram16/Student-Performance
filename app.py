@@ -225,7 +225,7 @@ hero_html = f"""
 """
 
 with hero_slot:
-    st.iframe(hero_html, height=340, scrolling=False)
+    st.iframe(hero_html, height=340)
 
 st.write("")
 
