@@ -1,5 +1,6 @@
 import math
 import streamlit as st
+import streamlit.components.v1 as components
 import joblib
 import numpy as np
 import pandas as pd
@@ -143,7 +144,12 @@ st.html("""
 
 st.write("")
 
-# ── Inputs (collected first so the hero dial can use live values) ──
+# ── Hero placeholder (appears first visually; filled in after inputs are read) ──
+hero_slot = st.container(border=True, key="hero")
+
+st.write("")
+
+# ── Inputs ───────────────────────────────────────────────────
 with st.container(border=True, key="inputs"):
     st.markdown('<div class="section-label">Your Inputs</div>', unsafe_allow_html=True)
     hours_studied = st.slider("Hours Studied", 0, 10, 5)
@@ -183,10 +189,21 @@ circumference = 2 * math.pi * radius
 dash = (clamped / 100) * circumference
 dasharray = f"{dash:.1f} {circumference:.1f}"
 
-# ── Hero dial (rendered above inputs in the page, values already computed) ──
+# ── Hero dial markup (rendered via iframe so SVG survives — st.html() strips it) ──
 hero_html = f"""
+<html>
+<head>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600&display=swap" rel="stylesheet">
+<style>
+    * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }}
+    html, body {{ background: transparent; }}
+</style>
+</head>
+<body>
 <div style="text-align:center; padding:8px 0 4px 0;">
-    <div class="section-label" style="text-align:left;">Predicted Performance Index</div>
+    <div style="font-size:0.7rem; font-weight:600; letter-spacing:0.08em; text-transform:uppercase;
+                color:#9397AB; text-align:left; margin-bottom:14px;">Predicted Performance Index</div>
     <div style="position:relative; width:220px; height:220px; margin:6px auto 0;">
         <svg width="220" height="220" viewBox="0 0 220 220" style="transform:rotate(-90deg);">
             <circle cx="110" cy="110" r="{radius}" fill="none" stroke="#292B31" stroke-width="16"></circle>
@@ -204,10 +221,12 @@ hero_html = f"""
     <span style="display:inline-block; margin-top:14px; padding:6px 14px; border-radius:999px;
                  font-size:12.5px; background:{tag_bg}; color:{tag_text};">{status_text}</span>
 </div>
+</body>
+</html>
 """
 
-with st.container(border=True, key="hero"):
-    st.html(hero_html)
+with hero_slot:
+    components.html(hero_html, height=340, scrolling=False)
 
 st.write("")
 
