@@ -42,6 +42,20 @@ html, body, [class*="css"] {
     color: var(--text);
 }
 
+/* Consistent readable width, centered */
+.block-container {
+    max-width: 640px;
+    padding-top: 2.5rem;
+    padding-bottom: 3rem;
+}
+
+/* Systematic vertical rhythm — every top-level block gets the same gap,
+   replacing scattered st.write("") spacers */
+.block-container > div[data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"],
+.block-container > div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlockBorderWrapper"] {
+    margin-bottom: 22px;
+}
+
 /* Header */
 .app-header h1 {
     font-family: 'Inter', sans-serif;
@@ -80,7 +94,15 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     box-shadow: 0 6px 18px rgba(0,0,0,0.45);
 }
 
-/* Sliders */
+/* Inputs card internal padding + spacing */
+.st-key-inputs div[data-testid="stVerticalBlockBorderWrapper"] > div {
+    padding: 4px 4px 6px 4px;
+}
+
+/* Sliders — even vertical rhythm between each one */
+[data-testid="stSlider"] {
+    margin-bottom: 6px;
+}
 [data-testid="stSlider"] label p {
     font-weight: 500;
     color: var(--text);
@@ -95,13 +117,34 @@ div[data-baseweb="slider"] > div > div {
     background: var(--accent) !important;
 }
 
-/* Segmented radio (Yes/No) */
+/* Segmented pill toggle for Yes/No — replaces default radio dots */
 [data-testid="stRadio"] label p {
     font-weight: 500;
     font-size: 0.9rem;
 }
 [data-testid="stRadio"] > div {
-    gap: 0 !important;
+    gap: 8px !important;
+    background: var(--bg);
+    border: 1px solid var(--divider);
+    border-radius: 10px;
+    padding: 4px;
+    display: inline-flex !important;
+}
+[data-testid="stRadio"] > div > label {
+    background: transparent;
+    border-radius: 7px;
+    padding: 6px 18px !important;
+    margin: 0 !important;
+    transition: background 0.15s ease;
+}
+[data-testid="stRadio"] > div > label:has(input:checked) {
+    background: var(--accent-800);
+}
+[data-testid="stRadio"] input {
+    display: none;
+}
+[data-testid="stRadio"] > div > label > div:first-child {
+    display: none;
 }
 
 /* Feature bars */
@@ -112,6 +155,8 @@ div[data-baseweb="slider"] > div > div {
     width: 170px;
     display: inline-block;
 }
+
+/* Expanders — same card treatment, with real internal padding */
 [data-testid="stExpander"] {
     border: 1px solid var(--divider);
     border-radius: 12px;
@@ -120,6 +165,9 @@ div[data-baseweb="slider"] > div > div {
 [data-testid="stExpander"] summary p {
     font-size: 0.85rem;
     font-weight: 500;
+}
+[data-testid="stExpanderDetails"] {
+    padding: 4px 6px 12px 6px;
 }
 
 /* Reset button */
@@ -178,12 +226,8 @@ try:
 except FileNotFoundError:
     training_df = None
 
-st.write("")
-
 # ── Hero placeholder (appears first visually; filled in after inputs are read) ──
 hero_slot = st.container(border=True, key="hero")
-
-st.write("")
 
 # ── Inputs ───────────────────────────────────────────────────
 DEFAULTS = {
@@ -258,10 +302,10 @@ hero_html = f"""
 </style>
 </head>
 <body>
-<div style="text-align:center; padding:8px 0 4px 0;">
+<div style="text-align:center; padding:6px 0 2px 0;">
     <div style="font-size:0.7rem; font-weight:600; letter-spacing:0.08em; text-transform:uppercase;
-                color:#9397AB; text-align:left; margin-bottom:14px;">Predicted Performance Index</div>
-    <div style="position:relative; width:220px; height:220px; margin:6px auto 0;">
+                color:#9397AB; text-align:left; margin-bottom:10px;">Predicted Performance Index</div>
+    <div style="position:relative; width:220px; height:220px; margin:4px auto 0;">
         <svg width="220" height="220" viewBox="0 0 220 220" style="transform:rotate(-90deg);">
             <circle cx="110" cy="110" r="{radius}" fill="none" stroke="#292B31" stroke-width="16"></circle>
             <circle cx="110" cy="110" r="{radius}" fill="none" stroke="{band_color}"
@@ -275,7 +319,7 @@ hero_html = f"""
                         color:#9397AB; margin-top:6px;">out of 100</div>
         </div>
     </div>
-    <span style="display:inline-block; margin-top:14px; padding:6px 14px; border-radius:999px;
+    <span style="display:inline-block; margin-top:12px; padding:6px 14px; border-radius:999px;
                  font-size:12.5px; background:{tag_bg}; color:{tag_text};">{status_text}</span>
 </div>
 </body>
@@ -283,9 +327,7 @@ hero_html = f"""
 """
 
 with hero_slot:
-    st.iframe(hero_html, height=340)
-
-st.write("")
+    st.iframe(hero_html, height=300)
 
 # ── Feature importance ──────────────────────────────────────────
 with st.expander("How much does each feature matter?"):
@@ -311,9 +353,7 @@ with st.expander("How much does each feature matter?"):
         """
     st.html(rows)
 
-st.write("")
-
-# ── Model performance metrics (Suggestion 3) ─────────────────────
+# ── Model performance metrics ─────────────────
 with st.expander("Model performance metrics"):
     if training_df is not None:
         try:
@@ -348,7 +388,7 @@ with st.expander("Model performance metrics"):
             "`Student_Performance.csv` in the app folder to compute live — it wasn't found."
         )
 
-# ── Training data distribution (Suggestion 2) ─────────────────────
+# ── Training data distribution ─────────────────
 with st.expander("Training data distribution"):
     if training_df is not None:
         import matplotlib.pyplot as plt
@@ -369,7 +409,6 @@ with st.expander("Training data distribution"):
             "Add it to the repo alongside `app.py` to enable this chart."
         )
 
-st.write("")
 st.markdown(
     '<p style="font-size:12px; color:#75798C;">Model: RandomForestRegressor (scikit-learn) '
     '· Runs live on this server, not hardcoded.</p>',
