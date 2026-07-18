@@ -4,7 +4,7 @@ A Streamlit web app that predicts student academic performance using a machine l
 
 ## 🚀 Live App
 
-(https://first-api-endpoint-dftapivck7kd6xpmlz5zf7.streamlit.app/)
+(https://student-performance-index-prediction.streamlit.app/)
 
 ## 📋 Features
 
